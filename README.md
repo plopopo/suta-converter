@@ -8,7 +8,7 @@ Small Windows-friendly utility for converting a state unemployment worksheet TXT
 - Python 3.10 or newer
 - No third-party Python packages are required
 
-## Easiest Use
+## Easiest Use From Source
 
 1. Double-click `Run SUTA Converter.bat`.
 2. Enter the path to the TXT file when prompted.
@@ -17,6 +17,43 @@ Small Windows-friendly utility for converting a state unemployment worksheet TXT
 5. Press Enter on any field that should stay blank.
 
 The script will parse employee rows, gross wages, employee count, and the reporting period from the TXT file when available.
+
+## No-Install Client Use
+
+For users who should not install Python, distribute the packaged executable:
+
+```text
+dist\SUTA Converter Console.exe
+```
+
+The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, and fill in only the fields they need. Pressing Enter leaves a field blank or accepts the shown default.
+
+## Build The EXE
+
+On the build machine only:
+
+```powershell
+pip install pyinstaller
+python -m PyInstaller --onefile --name "SUTA Converter Console" suta_txt_to_csv.py
+```
+
+Or double-click:
+
+```text
+Build EXE.bat
+```
+
+Clients do not need Python or PyInstaller after you give them the built `.exe`.
+
+## GUI Source
+
+`suta_converter_gui.py` contains a tkinter GUI version of the converter. It can be run with Python:
+
+```powershell
+python .\suta_converter_gui.py
+```
+
+Packaging the GUI as an EXE requires a Python installation with complete Tcl/Tk files. The prompt-based EXE above is the tested no-install distribution artifact.
 
 ## Command-Line Use
 
