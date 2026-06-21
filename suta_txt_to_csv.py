@@ -155,9 +155,15 @@ def split_employee_name(name: str) -> tuple[str, str, str]:
         return "", "", ""
     if len(parts) == 1:
         return parts[0], "", ""
+
+    for index in range(1, len(parts) - 1):
+        if len(parts[index]) == 1:
+            return " ".join(parts[:index]), parts[index], " ".join(parts[index + 1 :])
+
+    if len(parts) >= 4:
+        return " ".join(parts[:-2]), "", " ".join(parts[-2:])
+
     last_name = parts[-1]
-    if len(parts) >= 3 and len(parts[-2]) == 1:
-        return " ".join(parts[:-2]), parts[-2], last_name
     return " ".join(parts[:-1]), "", last_name
 
 
