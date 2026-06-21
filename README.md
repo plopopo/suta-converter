@@ -13,8 +13,8 @@ Small Windows-friendly utility for converting a state unemployment worksheet TXT
 1. Double-click `Run SUTA Converter.bat`.
 2. Enter the path to the TXT file when prompted.
 3. Press Enter to accept the default output CSV path, or type a different CSV path.
-4. Fill in any submitter/employer fields needed for the output CSV.
-5. Press Enter on any field that should stay blank.
+4. Enter the three commonly needed fields: Submitter FEIN, Employer UI account, and Employer FEIN.
+5. The converter leaves optional submitter/contact cells blank and uses standard defaults for technical fields.
 
 The script will parse employee rows, gross wages, employee count, and the reporting period from the TXT file when available.
 
@@ -27,6 +27,42 @@ dist\SUTA Converter Console.exe
 ```
 
 The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, then enter Submitter FEIN, Employer UI account, and Employer FEIN. Optional submitter/contact fields stay blank by default. Use `--advanced` only when every optional CSV field needs to be filled manually.
+
+## Simple Mode vs Advanced Mode
+
+By default, the converter uses simple mode. Simple mode asks only for:
+
+- TXT file path
+- Output CSV path
+- Submitter FEIN
+- Employer UI account
+- Employer FEIN
+
+Simple mode automatically:
+
+- Parses the reporting period from the TXT file
+- Counts employee records from the TXT file
+- Uses `0` for month 1 and month 2 employer counts
+- Uses the parsed employee count for month 3
+- Uses `1` for no wage indicator
+- Uses `1,1,1` for employee month indicators
+- Uses `0` for owner/officer relationship code
+- Uses `0` for adjustment code
+- Leaves optional submitter/contact cells blank
+
+Use advanced mode only when you need to manually fill every optional CSV field.
+
+From PowerShell:
+
+```powershell
+python .\suta_txt_to_csv.py --advanced
+```
+
+With the standalone executable:
+
+```powershell
+& ".\dist\SUTA Converter Console.exe" --advanced
+```
 
 ## Build The EXE
 
