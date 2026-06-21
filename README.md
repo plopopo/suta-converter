@@ -26,7 +26,7 @@ For users who should not install Python, distribute the packaged executable:
 dist\SUTA Converter Console.exe
 ```
 
-The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, and fill in only the fields they need. Pressing Enter leaves a field blank or accepts the shown default.
+The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, then enter Submitter FEIN, Employer UI account, and Employer FEIN. Optional submitter/contact fields stay blank by default. Use `--advanced` only when every optional CSV field needs to be filled manually.
 
 ## Build The EXE
 
@@ -58,7 +58,7 @@ Packaging the GUI as an EXE requires a Python installation with complete Tcl/Tk 
 ## Command-Line Use
 
 ```powershell
-python .\suta_txt_to_csv.py "C:\path\to\SUTA WKST.txt" -o "C:\path\to\output.csv"
+python .\suta_txt_to_csv.py "C:\path\to\SUTA WKST.txt" -o "C:\path\to\output.csv" --submitter-fein 413771120 --ui-account 100132872 --employer-fein 111111111
 ```
 
 You can also provide fields directly:

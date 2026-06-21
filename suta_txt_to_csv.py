@@ -262,59 +262,71 @@ def prompt_if_missing(
 
 def build_rows(args: argparse.Namespace, report: ParsedReport) -> list[list[str]]:
     guided = bool(args.guided)
+    advanced = bool(getattr(args, "advanced", False))
     reporting_period = prompt_if_missing(
-        "Reporting period, e.g. 32026", args.reporting_period, report.reporting_period, guided=guided
+        "Reporting period, e.g. 32026",
+        args.reporting_period,
+        report.reporting_period,
+        guided=guided and report.reporting_period is None,
     )
 
     submitter_fein = digits_only(prompt_if_missing("Submitter FEIN", args.submitter_fein, "", guided=guided))
     business_name = prompt_if_missing(
-        "Submitter business name", args.business_name, DEFAULT_SUBMITTER["business_name"], guided=guided
+        "Submitter business name", args.business_name, DEFAULT_SUBMITTER["business_name"], guided=guided and advanced
     ).upper()
     business_address = prompt_if_missing(
-        "Submitter address", args.business_address, DEFAULT_SUBMITTER["business_address"], guided=guided
+        "Submitter address", args.business_address, DEFAULT_SUBMITTER["business_address"], guided=guided and advanced
     ).upper()
     business_city = prompt_if_missing(
-        "Submitter city", args.business_city, DEFAULT_SUBMITTER["business_city"], guided=guided
+        "Submitter city", args.business_city, DEFAULT_SUBMITTER["business_city"], guided=guided and advanced
     ).upper()
     state_fips = prompt_if_missing(
-        "Submitter state FIPS code", args.state_fips, DEFAULT_SUBMITTER["state_fips"], guided=guided
+        "Submitter state FIPS code", args.state_fips, DEFAULT_SUBMITTER["state_fips"], guided=guided and advanced
     )
     zip_code = digits_only(
-        prompt_if_missing("Submitter ZIP code", args.zip_code, DEFAULT_SUBMITTER["zip_code"], guided=guided)
+        prompt_if_missing("Submitter ZIP code", args.zip_code, DEFAULT_SUBMITTER["zip_code"], guided=guided and advanced)
     )
     zip4 = digits_only(
-        prompt_if_missing("Submitter ZIP+4", args.zip4, DEFAULT_SUBMITTER["zip4"], guided=guided)
+        prompt_if_missing("Submitter ZIP+4", args.zip4, DEFAULT_SUBMITTER["zip4"], guided=guided and advanced)
     )
     contact_name = prompt_if_missing(
-        "Submitter contact name", args.contact_name, DEFAULT_SUBMITTER["contact_name"], guided=guided
+        "Submitter contact name", args.contact_name, DEFAULT_SUBMITTER["contact_name"], guided=guided and advanced
     ).upper()
     contact_phone = digits_only(
-        prompt_if_missing("Submitter contact phone", args.contact_phone, DEFAULT_SUBMITTER["contact_phone"], guided=guided)
+        prompt_if_missing(
+            "Submitter contact phone", args.contact_phone, DEFAULT_SUBMITTER["contact_phone"], guided=guided and advanced
+        )
     )
     contact_ext = digits_only(
-        prompt_if_missing("Submitter contact extension", args.contact_ext, DEFAULT_SUBMITTER["contact_ext"], guided=guided)
+        prompt_if_missing(
+            "Submitter contact extension", args.contact_ext, DEFAULT_SUBMITTER["contact_ext"], guided=guided and advanced
+        )
     )
     contact_email = prompt_if_missing(
-        "Submitter contact email", args.contact_email, DEFAULT_SUBMITTER["contact_email"], guided=guided
+        "Submitter contact email", args.contact_email, DEFAULT_SUBMITTER["contact_email"], guided=guided and advanced
     ).upper()
 
     ui_account = digits_only(prompt_if_missing("Employer UI account", args.ui_account, "", guided=guided))
     employer_fein = digits_only(prompt_if_missing("Employer FEIN", args.employer_fein, submitter_fein, guided=guided))
-    month1_count = prompt_if_missing("Employer 12th-of-month count for month 1", args.month1_count, "0", guided=guided)
-    month2_count = prompt_if_missing("Employer 12th-of-month count for month 2", args.month2_count, "0", guided=guided)
+    month1_count = prompt_if_missing(
+        "Employer 12th-of-month count for month 1", args.month1_count, "0", guided=guided and advanced
+    )
+    month2_count = prompt_if_missing(
+        "Employer 12th-of-month count for month 2", args.month2_count, "0", guided=guided and advanced
+    )
     month3_count = prompt_if_missing(
         "Employer 12th-of-month count for month 3",
         args.month3_count,
         str(len(report.employees)),
-        guided=guided,
+        guided=guided and advanced,
     )
-    no_wage_indicator = prompt_if_missing("No wage indicator", args.no_wage_indicator, "1", guided=guided)
+    no_wage_indicator = prompt_if_missing("No wage indicator", args.no_wage_indicator, "1", guided=guided and advanced)
 
-    employee_month1 = prompt_if_missing("Employee month 1 indicator", args.employee_month1, "1", guided=guided)
-    employee_month2 = prompt_if_missing("Employee month 2 indicator", args.employee_month2, "1", guided=guided)
-    employee_month3 = prompt_if_missing("Employee month 3 indicator", args.employee_month3, "1", guided=guided)
-    owner_officer = prompt_if_missing("Owner/officer relationship code", args.owner_officer, "0", guided=guided)
-    adjustment_code = prompt_if_missing("Adjustment code", args.adjustment_code, "0", guided=guided)
+    employee_month1 = prompt_if_missing("Employee month 1 indicator", args.employee_month1, "1", guided=guided and advanced)
+    employee_month2 = prompt_if_missing("Employee month 2 indicator", args.employee_month2, "1", guided=guided and advanced)
+    employee_month3 = prompt_if_missing("Employee month 3 indicator", args.employee_month3, "1", guided=guided and advanced)
+    owner_officer = prompt_if_missing("Owner/officer relationship code", args.owner_officer, "0", guided=guided and advanced)
+    adjustment_code = prompt_if_missing("Adjustment code", args.adjustment_code, "0", guided=guided and advanced)
 
     rows = [
         pad_row(
@@ -375,7 +387,6 @@ def build_rows(args: argparse.Namespace, report: ParsedReport) -> list[list[str]
     rows.append(pad_row(["3", str(len(report.employees)), report.total_gross_cents]))
     return rows
 
-
 def write_csv(path: Path, rows: list[list[str]]) -> None:
     with path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file, lineterminator="\n")
@@ -389,6 +400,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("input_txt", type=Path, nargs="?", help="Path to the source TXT worksheet.")
     parser.add_argument("-o", "--output", type=Path, help="Path for the output CSV.")
     parser.add_argument("--guided", action="store_true", help="Ask simple questions for missing CSV values.")
+    parser.add_argument("--advanced", action="store_true", help="Prompt for every optional CSV field instead of using defaults/blanks.")
     parser.add_argument("--non-interactive", action="store_true", help="Fail instead of prompting for missing values.")
 
     parser.add_argument("--submitter-fein")
@@ -452,7 +464,8 @@ def main(argv: list[str]) -> int:
     if args.input_txt is None:
         args.guided = True
         print("SUTA TXT to CSV converter")
-        print("Press Enter at any field to leave it blank or accept the shown default.")
+        print("Simple mode asks only for the fields normally needed.")
+        print("Use --advanced if you need to fill every optional CSV field.")
         input_path = prompt_path("TXT file to convert")
     else:
         input_path = args.input_txt.expanduser()

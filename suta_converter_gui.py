@@ -165,7 +165,7 @@ class SutaConverterApp(tk.Tk):
         try:
             report = parse_report(input_path)
             values = {name: variable.get().strip() for name, variable in self.field_vars.items()}
-            args = argparse.Namespace(guided=False, **values)
+            args = argparse.Namespace(guided=False, advanced=False, **values)
             rows = build_rows(args, report)
             write_csv(output_path, rows)
         except Exception as exc:
