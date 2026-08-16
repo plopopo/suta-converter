@@ -29,7 +29,6 @@ FIELD_DEFINITIONS = [
     ("contact_ext", "Submitter contact extension"),
     ("contact_email", "Submitter contact email"),
     ("ui_account", "Employer UI account"),
-    ("employer_fein", "Employer FEIN"),
     ("reporting_period", "Reporting period"),
     ("month1_count", "Employer month 1 count"),
     ("month2_count", "Employer month 2 count"),

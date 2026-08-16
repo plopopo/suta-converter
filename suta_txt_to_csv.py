@@ -24,16 +24,16 @@ from pathlib import Path
 CSV_WIDTH = 15
 
 DEFAULT_SUBMITTER = {
-    "business_name": "",
-    "business_address": "",
-    "business_city": "",
-    "state_fips": "",
-    "zip_code": "",
+    "business_name": "JOHN ZHENG & ASSOCIATES",
+    "business_address": "6106 EDMONDSON AVE",
+    "business_city": "CATONSVILLE",
+    "state_fips": "24",
+    "zip_code": "21228",
     "zip4": "",
-    "contact_name": "",
-    "contact_phone": "",
+    "contact_name": "JOHN ZHENG",
+    "contact_phone": "4107888859",
     "contact_ext": "",
-    "contact_email": "",
+    "contact_email": "JZ@JZHENGTAX.COM",
 }
 
 STATE_FIPS = {
@@ -101,18 +101,18 @@ EMPLOYEE_RE = re.compile(
     \s+
     (?P<weeks>\d+(?:\.\d+)?)
     \s+
-    (?P<gross>[\d,]+\.\d{2})
+    (?P<gross>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))
     \s+
-    (?P<taxable>[\d,]+\.\d{2})
+    (?P<taxable>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))
     \s+
-    (?P<exempt>[\d,]+\.\d{2})
+    (?P<exempt>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))
     \s*$
     """,
     re.VERBOSE,
 )
 
 TOTALS_RE = re.compile(
-    r"^\s*Totals:\s+(?P<gross>[\d,]+\.\d{2})\s+(?P<taxable>[\d,]+\.\d{2})\s+(?P<exempt>[\d,]+\.\d{2})",
+    r"^\s*Totals:\s+(?P<gross>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))\s+(?P<taxable>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))\s+(?P<exempt>-?[\d,]+\.\d{2}|\([\d,]+\.\d{2}\))",
     re.IGNORECASE,
 )
 
@@ -128,6 +128,8 @@ class Employee:
     middle_initial: str
     last_name: str
     gross_cents: str
+    taxable_cents: str
+    excess_cents: str
 
 
 @dataclass
@@ -136,11 +138,18 @@ class ParsedReport:
     reporting_period: str | None
     state_code: str | None
     total_gross_cents: str
+    total_taxable_cents: str
+    total_excess_cents: str
     listed_employee_count: int | None
 
 
 def money_to_cents(value: str) -> str:
-    amount = Decimal(value.replace(",", ""))
+    cleaned = value.strip().replace(",", "")
+    is_negative = cleaned.startswith("(") and cleaned.endswith(")")
+    cleaned = cleaned.strip("()")
+    amount = Decimal(cleaned or "0")
+    if is_negative:
+        amount = -amount
     cents = (amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return str(int(cents))
 
@@ -176,6 +185,8 @@ def parse_report(path: Path) -> ParsedReport:
     reporting_period: str | None = None
     state_code: str | None = None
     totals_gross_cents: str | None = None
+    totals_taxable_cents: str | None = None
+    totals_excess_cents: str | None = None
     listed_employee_count: int | None = None
 
     for raw_line in path.read_text(encoding="utf-8-sig", errors="replace").splitlines():
@@ -194,6 +205,8 @@ def parse_report(path: Path) -> ParsedReport:
         totals_match = TOTALS_RE.match(raw_line)
         if totals_match:
             totals_gross_cents = money_to_cents(totals_match.group("gross"))
+            totals_taxable_cents = money_to_cents(totals_match.group("taxable"))
+            totals_excess_cents = money_to_cents(totals_match.group("exempt"))
             continue
 
         listed_match = LISTED_EMPLOYEES_RE.search(raw_line)
@@ -211,18 +224,31 @@ def parse_report(path: Path) -> ParsedReport:
                     middle_initial=middle_initial,
                     last_name=last_name,
                     gross_cents=money_to_cents(employee_match.group("gross")),
+                    taxable_cents=money_to_cents(employee_match.group("taxable")),
+                    excess_cents=money_to_cents(employee_match.group("exempt")),
                 )
             )
 
     if not employees:
         raise ValueError(f"No employee rows were found in {path}")
 
-    calculated_total = str(sum(int(employee.gross_cents) for employee in employees))
+    calculated_gross_total = str(sum(int(employee.gross_cents) for employee in employees))
+    calculated_taxable_total = str(sum(int(employee.taxable_cents) for employee in employees))
+    calculated_excess_total = str(sum(int(employee.excess_cents) for employee in employees))
     if totals_gross_cents is None:
-        totals_gross_cents = calculated_total
-    elif totals_gross_cents != calculated_total:
+        totals_gross_cents = calculated_gross_total
+        totals_taxable_cents = calculated_taxable_total
+        totals_excess_cents = calculated_excess_total
+    elif (
+        totals_gross_cents != calculated_gross_total
+        or totals_taxable_cents != calculated_taxable_total
+        or totals_excess_cents != calculated_excess_total
+    ):
         raise ValueError(
-            f"Parsed employee gross total {calculated_total} does not match worksheet total {totals_gross_cents}"
+            "Parsed employee totals do not match worksheet totals: "
+            f"gross {calculated_gross_total}/{totals_gross_cents}, "
+            f"taxable {calculated_taxable_total}/{totals_taxable_cents}, "
+            f"excess {calculated_excess_total}/{totals_excess_cents}"
         )
 
     if listed_employee_count is not None and listed_employee_count != len(employees):
@@ -235,6 +261,8 @@ def parse_report(path: Path) -> ParsedReport:
         reporting_period=reporting_period,
         state_code=state_code,
         total_gross_cents=totals_gross_cents,
+        total_taxable_cents=totals_taxable_cents or calculated_taxable_total,
+        total_excess_cents=totals_excess_cents or calculated_excess_total,
         listed_employee_count=listed_employee_count,
     )
 
@@ -313,17 +341,17 @@ def build_rows(args: argparse.Namespace, report: ParsedReport) -> list[list[str]
     ).upper()
 
     ui_account = digits_only(prompt_if_missing("Employer UI account", args.ui_account, "", guided=guided))
-    employer_fein = digits_only(prompt_if_missing("Employer FEIN", args.employer_fein, submitter_fein, guided=guided))
+    month_count_default = str(len(report.employees))
     month1_count = prompt_if_missing(
-        "Employer 12th-of-month count for month 1", args.month1_count, "0", guided=guided and advanced
+        "Employer 12th-of-month count for month 1", args.month1_count, month_count_default, guided=guided and advanced
     )
     month2_count = prompt_if_missing(
-        "Employer 12th-of-month count for month 2", args.month2_count, "0", guided=guided and advanced
+        "Employer 12th-of-month count for month 2", args.month2_count, month_count_default, guided=guided and advanced
     )
     month3_count = prompt_if_missing(
         "Employer 12th-of-month count for month 3",
         args.month3_count,
-        str(len(report.employees)),
+        month_count_default,
         guided=guided and advanced,
     )
     no_wage_indicator = prompt_if_missing("No wage indicator", args.no_wage_indicator, "1", guided=guided and advanced)
@@ -356,9 +384,9 @@ def build_rows(args: argparse.Namespace, report: ParsedReport) -> list[list[str]
                 "1",
                 ui_account,
                 reporting_period,
-                employer_fein,
                 report.total_gross_cents,
-                args.out_of_state_taxable_wages or "0",
+                report.total_taxable_cents,
+                report.total_excess_cents,
                 month1_count,
                 month2_count,
                 month3_count,
@@ -422,7 +450,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--contact-email", default=DEFAULT_SUBMITTER["contact_email"])
 
     parser.add_argument("--ui-account")
-    parser.add_argument("--employer-fein")
+    parser.add_argument("--employer-fein", help="Deprecated; employer FEIN is not written to the employer record.")
     parser.add_argument("--reporting-period", help="Last month of quarter plus year, e.g. 32026.")
     parser.add_argument("--month1-count")
     parser.add_argument("--month2-count")
@@ -470,7 +498,7 @@ def main(argv: list[str]) -> int:
     if args.input_txt is None:
         args.guided = True
         print("SUTA TXT to CSV converter")
-        print("Simple mode asks only for the fields normally needed.")
+        print("Simple mode asks only for Submitter FEIN and Employer UI account.")
         print("Use --advanced if you need to fill every optional CSV field.")
         input_path = prompt_path("TXT file to convert")
     else:

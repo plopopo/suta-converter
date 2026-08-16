@@ -13,8 +13,8 @@ Small Windows-friendly utility for converting a state unemployment worksheet TXT
 1. Double-click `Run SUTA Converter.bat`.
 2. Enter the path to the TXT file when prompted.
 3. Press Enter to accept the default output CSV path, or type a different CSV path.
-4. Enter the three commonly needed fields: Submitter FEIN, Employer UI account, and Employer FEIN.
-5. The converter leaves optional submitter/contact cells blank and uses standard defaults for technical fields.
+4. Enter the two commonly needed fields: Submitter FEIN and Employer UI account.
+5. The converter keeps the rest of the submitter row constant and uses parsed/default values for technical fields.
 
 The script will parse employee rows, gross wages, employee count, and the reporting period from the TXT file when available.
 
@@ -26,7 +26,7 @@ For users who should not install Python, distribute the packaged executable:
 dist\SUTA Converter Console.exe
 ```
 
-The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, then enter Submitter FEIN, Employer UI account, and Employer FEIN. Optional submitter/contact fields stay blank by default. Use `--advanced` only when every optional CSV field needs to be filled manually.
+The executable opens a simple prompt window. Users enter the TXT path, choose the output CSV path, then enter Submitter FEIN and Employer UI account. The first row stays constant except for B1, which is the Submitter FEIN. Use `--advanced` only when optional CSV fields need to be overridden manually.
 
 ## Simple Mode vs Advanced Mode
 
@@ -36,19 +36,17 @@ By default, the converter uses simple mode. Simple mode asks only for:
 - Output CSV path
 - Submitter FEIN
 - Employer UI account
-- Employer FEIN
 
 Simple mode automatically:
 
 - Parses the reporting period from the TXT file
 - Counts employee records from the TXT file
-- Uses `0` for month 1 and month 2 employer counts
-- Uses the parsed employee count for month 3
+- Uses the parsed employee count for month 1, month 2, and month 3
 - Uses `1` for no wage indicator
 - Uses `1,1,1` for employee month indicators
 - Uses `0` for owner/officer relationship code
 - Uses `0` for adjustment code
-- Leaves optional submitter/contact cells blank
+- Keeps the first submitter row constant except for B1
 
 Use advanced mode only when you need to manually fill every optional CSV field.
 
@@ -94,7 +92,7 @@ Packaging the GUI as an EXE requires a Python installation with complete Tcl/Tk 
 ## Command-Line Use
 
 ```powershell
-python .\suta_txt_to_csv.py "C:\path\to\SUTA WKST.txt" -o "C:\path\to\output.csv" --submitter-fein 413771120 --ui-account 100132872 --employer-fein 111111111
+python .\suta_txt_to_csv.py "C:\path\to\SUTA WKST.txt" -o "C:\path\to\output.csv" --submitter-fein 123456789 --ui-account 000123456
 ```
 
 You can also provide fields directly:
@@ -102,9 +100,8 @@ You can also provide fields directly:
 ```powershell
 python .\suta_txt_to_csv.py "C:\path\to\SUTA WKST.txt" `
   -o "C:\path\to\output.csv" `
-  --submitter-fein 413771120 `
-  --ui-account 100132872 `
-  --employer-fein 111111111
+  --submitter-fein 123456789 `
+  --ui-account 000123456
 ```
 
 ## Output
@@ -121,5 +118,7 @@ Each row is padded to 15 columns.
 ## Notes
 
 - Monetary values are converted to cents, matching the provided sample CSV format.
+- Gross, taxable, and excess wages are parsed separately for the employer summary row.
 - SSNs and phone/FEIN/account fields are normalized to digits only.
+- CSV values are written as text, but Excel may still visually strip leading zeros when a CSV is opened by double-clicking it. For inspection, import the CSV through Excel's Data/Text import flow and mark FEIN, UI account, and SSN columns as text.
 - The converter validates that parsed employee wage totals match the worksheet total when the worksheet contains a total.
